@@ -1,5 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getStore, validEnv, validate } from './_lib/config';
+import { getStore, validEnv, validate, type Entry } from './_lib/config';
+
+type Change = {
+  key: string;
+  kind: 'added' | 'missing' | 'type_mismatch' | 'invalid' | 'value_mismatch';
+  source: Entry | null;
+  target: Entry | null;
+  issue?: string;
+};
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -15,9 +23,9 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   const a = new Map(source.map(x => [x.key, x]));
   const b = new Map(target.map(x => [x.key, x]));
   const keys = [...new Set([...a.keys(), ...b.keys()])].sort();
-  const changes = keys.flatMap(key => {
+  const changes: Change[] = keys.flatMap<Change>(key => {
     const s = a.get(key), t = b.get(key);
-    if (!s) return [{ key, kind: 'added', source: null, target: t }];
+    if (!s) return [{ key, kind: 'added', source: null, target: t ?? null }];
     if (!t) return [{ key, kind: 'missing', source: s, target: null }];
     if (s.type !== t.type) return [{ key, kind: 'type_mismatch', source: s, target: t }];
     const issue = validate(t);
